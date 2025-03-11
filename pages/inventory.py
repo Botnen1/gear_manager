@@ -54,18 +54,21 @@ def app():
                 else:
                     st.error("Enter gear name.")
 
-    # Display Owned Gear Only
-    st.subheader("🗃️ Current Inventory (Owned Items)")
-    gear_items = session.query(Gear).filter(Gear.status == "owned").all()  # Only owned gear
+    # Display Gear Items with Edit & Delete Options
+    st.subheader("🗃️ Current Inventory")
+    gear_items = session.query(Gear).all()
 
     if gear_items:
         cols = st.columns(3)  # Adjust number for grid layout
+
         for idx, gear in enumerate(gear_items):
-            col = cols[idx % 3]
+            col = cols[idx % 3]  # Place items in a flexible grid layout
             with col:
-                with st.container(border=True):
+                with st.container(border=True):  # ✅ Removed fixed height to prevent scrolling
+                    # ✅ Set fixed max width for images but allow auto-height
                     if gear.image_path and os.path.exists(gear.image_path):
-                        st.image(gear.image_path, use_container_width=True)
+                        st.image(gear.image_path, use_container_width=False, width=150)
+
                     st.markdown(f"### {gear.name}")
                     st.caption(f"{gear.category}")
                     st.markdown(f"- **Weight:** {gear.weight_grams} grams")
@@ -87,14 +90,34 @@ def app():
                     # Editing form (if user clicked edit)
                     if st.session_state.get('edit_item_id') == gear.id:
                         with st.form(f"edit_form_{gear.id}"):
+                            new_category = st.selectbox("Category", 
+                                ["Camp", "Cooking", "Clothing", "Shoes", "Gear", "Electronics", "Fishing", "Firepouch", "Accessories", "Documents", "Misc"],
+                                index=["Camp", "Cooking", "Clothing", "Shoes", "Gear", "Electronics", "Fishing", "Firepouch", "Accessories", "Documents", "Misc"].index(gear.category)
+                            )
                             new_weight = st.number_input("Weight (grams)", value=gear.weight_grams)
+                            new_status = st.selectbox("Status", ["owned", "wishlist", "ordered"], index=["owned", "wishlist", "ordered"].index(gear.status))
                             new_notes = st.text_area("Notes", value=gear.notes if gear.notes else "")
                             new_link = st.text_input("Link", value=gear.link if gear.link else "")
 
+                            # Image Upload (show existing image if available)
+                            st.markdown("### Update Image")
+                            if gear.image_path and os.path.exists(gear.image_path):
+                                st.image(gear.image_path, caption="Current Image", width=100)  # ✅ Smaller image preview
+                            new_image = st.file_uploader("Upload New Image (optional)", type=["png", "jpg", "jpeg"])
+
+                            # Save Changes Button
                             if st.form_submit_button("Save Changes"):
+                                gear.category = new_category
                                 gear.weight_grams = new_weight
-                                gear.notes = new_notes
-                                gear.link = new_link
+                                gear.status = new_status
+                                gear.notes = new_notes.strip()
+                                gear.link = new_link.strip()
+
+                                # Update Image if a new one is uploaded
+                                if new_image:
+                                    image_path = save_image(new_image, gear.name)  # Save and update image
+                                    gear.image_path = image_path
+
                                 session.commit()
                                 st.success(f"✅ '{gear.name}' updated successfully!")
                                 del st.session_state['edit_item_id']
