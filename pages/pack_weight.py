@@ -7,7 +7,7 @@ def app():
 
     session = get_session()
 
-    st.subheader("Select gear to pack (excludes clothing and shoes):")
+    st.subheader("Select gear to pack (excludes and shoes):")
 
     # Fetch only owned gear that is NOT clothing or shoes
     gear_items = session.query(Gear).filter(
